@@ -34,7 +34,7 @@ func main() {
 		fmt.Println("Filename must be passed")
 		return
 	}
-	chanPopulated := make(chan string) // to push paragraphs into
+	chanPopulated := make(chan string)    // to push paragraphs into
 	chanProcessed := make(chan occurence) // to push paragraphs into
 
 	var buff bytes.Buffer
@@ -58,26 +58,28 @@ func main() {
 	go populate(data, chanPopulated)
 	go process(chanPopulated, chanProcessed)
 
-        // aggregation. Range over prgrphOccrncsUniqueMerged and find matching struct and aggregate counts
-        var prgrphOccrncsUniqueAggr []occurence
-	for v := range chanProcessed{
+	// aggregation. Range over prgrphOccrncsUniqueMerged and find matching struct and aggregate counts
+	var prgrphOccrncsUniqueAggr []occurence
+	for v := range chanProcessed {
 		skip := false
-                for i, u := range prgrphOccrncsUniqueAggr {
-                        if v.Phrase == u.Phrase {
-                                prgrphOccrncsUniqueAggr[i].Count += v.Count // sum up Counts
-                                skip = true
-                        }
-                }
-                if !skip {
-                        prgrphOccrncsUniqueAggr = append(prgrphOccrncsUniqueAggr, v)
-                }
+		for i, u := range prgrphOccrncsUniqueAggr {
+			if v.Phrase == u.Phrase {
+				prgrphOccrncsUniqueAggr[i].Count += v.Count // sum up Counts
+				skip = true
+			}
+		}
+		if !skip {
+			prgrphOccrncsUniqueAggr = append(prgrphOccrncsUniqueAggr, v)
+		}
 	}
 
 	sort.Sort(ByCount(prgrphOccrncsUniqueAggr))
 
 	// dump first 100 structs sorted in descending way into json
 	outputLen := len(prgrphOccrncsUniqueAggr)
-	if outputLen > 100 {outputLen = 100}
+	if outputLen > 100 {
+		outputLen = 100
+	}
 
 	file, _ := json.MarshalIndent(prgrphOccrncsUniqueAggr[:outputLen], "", " ")
 	_ = ioutil.WriteFile("output.json", file, 0644)
@@ -124,11 +126,11 @@ func process(cIn <-chan string, cOut chan<- occurence) {
 
 			// replcing characters and extra spaces
 			reg, err := regexp.Compile(`[^\w+]`)
-		        errCheck(err)
-		        prgrph = reg.ReplaceAllString(prgrph, " ")
-                        reg, err = regexp.Compile(`\s{2,}`)
-                        errCheck(err)
-                        prgrph = reg.ReplaceAllString(prgrph, " ")
+			errCheck(err)
+			prgrph = reg.ReplaceAllString(prgrph, " ")
+			reg, err = regexp.Compile(`\s{2,}`)
+			errCheck(err)
+			prgrph = reg.ReplaceAllString(prgrph, " ")
 			prgrph = strings.ToLower(prgrph)
 
 			words := strings.Fields(prgrph) // to construct searching phrases
