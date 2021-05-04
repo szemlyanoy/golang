@@ -7,10 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
-	"runtime"
 	"sort"
-	"strings"
 	"sync"
 )
 
@@ -59,117 +56,27 @@ func main() {
 	go process(chanPopulated, chanProcessed)
 
 	// aggregation. Range over prgrphOccrncsUniqueMerged and find matching struct and aggregate counts
-	var prgrphOccrncsUniqueAggr []occurence
+	prgrphOccrncsUniqueAggr := make(map[string]int)
 	for v := range chanProcessed {
-		skip := false
-		for i, u := range prgrphOccrncsUniqueAggr {
-			if v.Phrase == u.Phrase {
-				prgrphOccrncsUniqueAggr[i].Count += v.Count // sum up Counts
-				skip = true
-			}
-		}
-		if !skip {
-			prgrphOccrncsUniqueAggr = append(prgrphOccrncsUniqueAggr, v)
-		}
+		prgrphOccrncsUniqueAggr[v.Phrase] += v.Count
+
 	}
+	// sorting by Count
+	res := make(ByCount, len(prgrphOccrncsUniqueAggr))
+	var i int
+	for k, v := range prgrphOccrncsUniqueAggr {
+		res[i] = occurence{k, v}
+		i++
+	}
+	sort.Sort(ByCount(res)) // sorted
 
-	sort.Sort(ByCount(prgrphOccrncsUniqueAggr))
-
-	// dump first 100 structs sorted in descending way into json
-	outputLen := len(prgrphOccrncsUniqueAggr)
+	// dump first 100 occurences sorted in descending way into json
+	outputLen := len(res)
 	if outputLen > 100 {
 		outputLen = 100
 	}
-
-	file, _ := json.MarshalIndent(prgrphOccrncsUniqueAggr[:outputLen], "", " ")
-	_ = ioutil.WriteFile("output.json", file, 0644)
+	resJson, _ := json.MarshalIndent(res[:outputLen], "", " ")
+	_ = ioutil.WriteFile("output.json", resJson, 0644)
 
 	fmt.Printf("\n== Results stored in output.json ===\n")
-}
-
-// ==============
-func errCheck(e error) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-// ==============
-
-//  take substring, split by paragraph
-func populate(d string, c chan<- string) {
-	prgrphs := strings.Split(d, "\n\n")
-
-	for i := range prgrphs {
-		prgrph := prgrphs[i]
-		if len(prgrph) == 0 {
-			continue
-		} // to skip empty elements
-		c <- prgrph
-	}
-	close(c)
-}
-
-// to return channel of prgrphOccrncsUniqueMerged
-func process(cIn <-chan string, cOut chan<- occurence) {
-	var wg sync.WaitGroup
-	for p := range cIn {
-		if len(p) == 0 {
-			continue
-		} // to skip empty elements
-		wg.Add(1)
-		go func(prgrph string) {
-			fmt.Println("Goroutines:", runtime.NumGoroutine())
-
-			var prgrphOccrncs []occurence
-			var prgrphOccrncsUnique []occurence
-
-			// replcing characters and extra spaces
-			reg, err := regexp.Compile(`[^\w+]`)
-			errCheck(err)
-			prgrph = reg.ReplaceAllString(prgrph, " ")
-			reg, err = regexp.Compile(`\s{2,}`)
-			errCheck(err)
-			prgrph = reg.ReplaceAllString(prgrph, " ")
-			prgrph = strings.ToLower(prgrph)
-
-			words := strings.Fields(prgrph) // to construct searching phrases
-
-			for j := 2; j < len(words); j++ { // starting on 2 to catch 3-words phrase from beginning
-				substr := occurence{
-					Phrase: strings.Join([]string{words[j-2], words[j-1], words[j]}, " "),
-					Count:  0,
-				}
-				lookupPhraseRegexp := regexp.MustCompile(substr.Phrase)
-				phraseMatches := lookupPhraseRegexp.FindAllStringIndex(prgrph, -1)
-				substr.Count = len(phraseMatches)
-				prgrphOccrncs = append(prgrphOccrncs, substr)
-			}
-
-			// now we might have duplicate structs after processing paragraph
-			for _, v := range prgrphOccrncs {
-				skip := false
-				for _, u := range prgrphOccrncsUnique {
-					if v == u {
-						skip = true
-						break
-					}
-				}
-				if !skip {
-					prgrphOccrncsUnique = append(prgrphOccrncsUnique, v)
-				}
-			}
-
-			// push to channle, fan-in
-			for _, v := range prgrphOccrncsUnique {
-				cOut <- v
-			}
-
-			fmt.Printf("paragraph complete\n")
-			wg.Done()
-		}(p)
-	}
-
-	wg.Wait()
-	close(cOut)
 }

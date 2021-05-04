@@ -2,19 +2,19 @@ Program processes text data passed in the form of file and outputs json with at 
 
 v1-- Sergii Zemlianyi | 03/30/2021
 
-v2-- 
-   > channels, Fan-in/Fan-out
-   > [bug] phrases split by '\n' not counted
+v2-- Sergii Zemlianyi | 05/04/2021
+   + optimized final aggregation using maps      
+   + split files
 
 
-TODO: 
+TODO:
+-- to add unit tests 
 -- concurency for final deduplication
--- more friendly output 
 
 
 Steps to test program
-1. Copy 'main' binary to any Linux host
+1. Copy 'phrases_popularity' binary to any Linux host
 2. Run 
- ./main <file1>...<fileN>
+ ./phrases_popularity <file1>...<fileN>
 
 where fileN - any file to process to find phrases popularity. Good sample source http://www.gutenberg.org/cache/epub/2009/pg2009.txt 
