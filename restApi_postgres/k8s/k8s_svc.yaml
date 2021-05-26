@@ -13,6 +13,5 @@ spec:
     protocol: TCP
     targetPort: 8080
   selector:
-    app: goweb  
-  #type: LoadBal  ancer
+    app: goweb    
   type: NodePort
